@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES-GCM Symmetric Encryption/Decryption</title>
+</head>
+<style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin: 10px 0;
+      padding: 5px;
+      resize: none;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+</style>
+<body>
+    <div class="container">
+        <h2>AES-GCM Symmetric Encryption/Decryption</h2>
+        <section>
+        <p>Symmetric encryption uses the same secret key for encryption and decryption.</p>
+        <p>This should only be used if you have a secure way of sharing the secret key.</p>
+        <p>This implementation uses a user supplied password to generate the secret key.</p>
+        </section>
+        <label for="password">Password:</label>
+        <input id="password"><br>
+
+        <label for="plaintext">Unencrypted Message:</label><br>
+        <textarea id="plaintext" rows="5" cols="50">Enter your message here</textarea><br>
+        <button onclick="encrypt()">Encrypt</button><br>
+
+        <label for="cipher">Encrypted Text:</label><br>
+        <textarea id="cipher" rows="5" cols="50"></textarea><br>
+        <button onclick="decryptWithError()">Decrypt</button><br>
+        
+        <label for="decrypted">Decrypted Text:</label><br>
+        <textarea id="decrypted" rows="5" cols="50" readonly></textarea><br>
+    </div>
+    <script>
+        async function getKey(password, iv) {
+            const alg = { name: 'AES-GCM', iv }
+            const encoder = new TextEncoder();
+            const passwordData = encoder.encode(password);
+            const pwHash = await window.crypto.subtle.digest('SHA-256', passwordData);
+            return await crypto.subtle.importKey('raw', pwHash, alg, false, ['encrypt', 'decrypt']);
+        }
+
+        async function encrypt() {
+            const password = document.getElementById('password').value;
+            const plaintext = document.getElementById('plaintext').value;
+            const encoder = new TextEncoder();
+            const encodedPlaintext = encoder.encode(plaintext);
+
+            // Generate a random 96-bit IV
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+
+            // Generate key from password
+            const key = await getKey(password, iv);
+
+            // Encrypt the plaintext
+            const cipher = await window.crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv },
+                key,
+                encodedPlaintext
+            );
+
+            // Encode the ciphertext and IV as base64
+            const base64Cipher = btoa(String.fromCharCode(...new Uint8Array(cipher)));
+            const base64IV = btoa(String.fromCharCode(...iv));
+
+            // Display the ciphertext with IV
+            document.getElementById('cipher').value = base64IV + ':' + base64Cipher;
+        }
+
+        async function decrypt() {
+            const password = document.getElementById('password').value;
+            const cipherText = document.getElementById('cipher').value;
+
+            // Split ciphertext and IV
+            const parts = cipherText.split(':');
+            const base64IV = parts[0];
+            const base64Cipher = parts[1];
+
+            // Decode IV and ciphertext from base64
+            const iv = Uint8Array.from(atob(base64IV), c => c.charCodeAt(0));
+            const cipher = Uint8Array.from(atob(base64Cipher), c => c.charCodeAt(0));
+
+            // Generate key from password
+            const key = await getKey(password);
+
+            // Decrypt the ciphertext
+            const decrypted = await window.crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv },
+                key,
+                cipher
+            );
+
+            // Decode the decrypted plaintext
+            const decoder = new TextDecoder();
+            document.getElementById('decrypted').value = decoder.decode(decrypted);
+        }
+
+        async function decryptWithError() {
+            try {
+                await decrypt(); 
+            } catch (e) {
+                document.getElementById('decrypted').value = "Error, incorrect password or ciphertext"
+            }
+        }
+    </script>
+</body>
+</html>

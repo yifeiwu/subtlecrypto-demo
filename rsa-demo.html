@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RSA Encryption and Decryption</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+  .container {
+    max-width: 600px;
+    margin: 50px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+  }
+  textarea, input {
+    width: 100%;
+    height: 100px;
+    margin: 10px 0;
+    padding: 5px;
+    resize: none;
+  }
+  button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-right: 10px;
+  }
+  button:hover {
+    background-color: #45a049;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>RSA Encryption and Decryption</h2>
+  <section>
+    <p>Asymmetric key encryption utilizes a public key to encrypt a secret and a private key to decrypt.</p>
+    <p>The public key can be shared through insecure channels publicly.</p>
+    <p>The private key needs to be kept secure.</p>
+    <p>This method of message sending requires several steps</p>
+    <ol>
+      <li>Receiver generates keys and shares the public key.</li>
+      <li>Sender encrypts the message using the public key. User sends the ciphertext.</li>
+      <li>Receiver decrypts the ciphertext using the private key.</li>
+    </ol>
+  </section>
+
+  
+  <hr>
+
+  <h4>1. Receiver - Generate Public and Private Keys</h4>
+  <p>Save the keys. Share the public key with the sender</p>
+  <button onclick="generateKeys()">Generate Keys</button>
+  <p>Public Key:</p>
+  <textarea id="publicKey" readonly></textarea>
+  <p>Private Key:</p>
+  <textarea id="privateKey" readonly></textarea>
+
+  <hr>
+
+  <h4>2. Sender - Encrypt message</h4>
+  <p>Enter your receiver's public key and your secret message to encrypt.</p>
+  <p>Share the ciphertext with your receiver.</p>
+
+  <p>Enter Public Key:</p>
+  <textarea type="text" id="enteredPublicKey"></textarea>
+  <p>Secret Message:</p>
+  <textarea id="plaintext"></textarea>
+  <button onclick="encrypt()">Encrypt</button>
+  <p>Ciphertext:</p>
+  <textarea id="ciphertext_encrypt" readonly></textarea>
+
+  <hr>
+
+  <h4>3. Receiver - Decode message</h4>
+  <p>Enter your private key and the ciphertext to decrypt</p>
+
+  <p>Enter Private Key:</p>
+  <textarea id="enteredPrivateKey"></textarea>
+  <p>Ciphertext:</p>
+  <textarea id="ciphertext_decrypt"></textarea>
+
+  <button onclick="decrypt()">Decrypt</button>
+  <p>Decrypted Plaintext:</p>
+  <textarea id="decryptedPlaintext" readonly></textarea>
+</div>
+
+<script>
+  async function generateKeys() {
+    const keyPair = await window.crypto.subtle.generateKey(
+      {
+        name: "RSA-OAEP",
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: "SHA-256"
+      },
+      true,
+      ["encrypt", "decrypt"]
+    );
+
+    const publicKey = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
+    const privateKey = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+
+    document.getElementById("publicKey").value = btoa(String.fromCharCode.apply(null, new Uint8Array(publicKey)));
+    document.getElementById("privateKey").value = btoa(String.fromCharCode.apply(null, new Uint8Array(privateKey)));
+  }
+
+  async function encrypt() {
+    const publicKey = document.getElementById("enteredPublicKey").value;
+    const plaintext = document.getElementById("plaintext").value;
+
+    const publicKeyBinary = new Uint8Array(atob(publicKey).split('').map(char => char.charCodeAt(0)));
+
+    const publicKeyCrypto = await window.crypto.subtle.importKey("spki", publicKeyBinary,
+    {name: "RSA-OAEP", hash: "SHA-256"}, 
+    true, ["encrypt"]);
+
+
+    const encrypted = await window.crypto.subtle.encrypt(
+      {
+        name: "RSA-OAEP"
+      },
+      publicKeyCrypto,
+      new TextEncoder().encode(plaintext)
+    );
+
+    document.getElementById("ciphertext_encrypt").value = btoa(String.fromCharCode.apply(null, new Uint8Array(encrypted)));
+  }
+
+  async function decrypt() {
+    const privateKey = document.getElementById("enteredPrivateKey").value;
+    const ciphertext = document.getElementById("ciphertext_decrypt").value;
+
+    const privateKeyBinary = new Uint8Array(atob(privateKey).split('').map(char => char.charCodeAt(0)));
+
+    const privateKeyCrypto = await window.crypto.subtle.importKey("pkcs8", privateKeyBinary,
+    {name: "RSA-OAEP", hash: "SHA-256"}, 
+    true, ["decrypt"]);
+
+    const decrypted = await window.crypto.subtle.decrypt(
+      {
+        name: "RSA-OAEP"
+      },
+      privateKeyCrypto,
+      new Uint8Array(atob(ciphertext).split('').map(char => char.charCodeAt(0)))
+    );
+
+    document.getElementById("decryptedPlaintext").value = new TextDecoder().decode(decrypted);
+  }
+
+  generateKeys(); // Generate keys when page loads
+</script>
+</body>
+</html>
